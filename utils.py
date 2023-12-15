@@ -18,7 +18,8 @@ def get_bnb_config() -> BitsAndBytesConfig:
 def score_submission(pid, code):
   verdict = execution.evaluate(pid, code)
   if verdict['CE']:
-    assert len(verdict["errors"]) != 0
+    if verdict['mainless']:
+      return 0
     first_error = min(i["index"] / (i["context_length"]+1) for i in verdict["errors"])
     return first_error
   else:
