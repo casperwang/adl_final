@@ -19,7 +19,7 @@ from transformers import (
   DataCollatorForSeq2Seq
 )
 
-from utils import get_bnb_config
+from utils import get_bnb_config, score_submission
 
 from torch import cuda
 device = 'cuda' if cuda.is_available() else 'cpu'
@@ -45,7 +45,7 @@ class MyRLEnv(TextRLEnv):
     reward = 0
     if finish:
       predicted_text = tokenizer.convert_tokens_to_string(predicted_list[0])
-      reward = get_result(input_item['problem_id'], predicted_text)
+      reward = score_submission(input_item['problem_id'], predicted_text)
     return rewards
 
 def main():

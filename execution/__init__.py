@@ -36,6 +36,7 @@ def parse_verdict(s, code):
         match = [re.match(r'^[^:]+:(\d+):(\d+): error', i) for i in s]
         match = [(int(i.group(1)), int(i.group(2))) for i in match if i]
         result["errors"] = [posistion(*i, code) for i in match]
+        assert len(result["errors"]) != 0, "oops... no error?"
     else:
         s = s[1:][::-1]
         s = [i.rstrip() for i in s]
