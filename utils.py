@@ -15,10 +15,19 @@ def get_bnb_config() -> BitsAndBytesConfig:
   )
   return config
 
+def cut_string(input_string, begin_token, end_token):
+  start_index = input_string.find(begin_token)
+  if start_index == -1:
+    return input_string
+  result = input_string[start_index:]
+  return result
+
 def score_submission(pid, code):
   verdict = execution.evaluate(pid, code)
   if verdict['CE']:
-    assert len(verdict["errors"]) != 0
+    if len(verdict["errors"]) == 0:
+      return 0
+    # assert len(verdict["errors"]) != 0
     first_error = min(i["index"] / (i["context_length"]+1) for i in verdict["errors"])
     return first_error
   else:
