@@ -25,9 +25,14 @@ def cut_string(input_string, begin_token, end_token):
 def score_submission(pid, code):
   verdict = execution.evaluate(pid, code)
   if verdict['CE']:
+<<<<<<< HEAD
     if len(verdict["errors"]) == 0:
       return 0
     # assert len(verdict["errors"]) != 0
+=======
+    if verdict['mainless']:
+      return 0
+>>>>>>> refs/remotes/origin/main
     first_error = min(i["index"] / (i["context_length"]+1) for i in verdict["errors"])
     return first_error
   else:
