@@ -65,7 +65,8 @@ class MyTextRLActor(TextRLActor):
 
     f = pfrl.nn.Branched.__call__
     def new_call(self, *args, **kwargs):
-      res = f(self, *args, **kwargs)
+      with autocast(dtype=torch.bfloat16):
+        res = f(self, *args, **kwargs)
       return (res[0], res[1].to(torch.float))
     pfrl.nn.Branched.__call__ = new_call
 
@@ -164,18 +165,17 @@ def main():
 
   logger.info('Start training')
 
-  with autocast(dtype=torch.bfloat16):
-    train_agent_with_evaluation(
-      agent,
-      env,
-      steps=100000,
-      eval_n_steps=None,
-      eval_n_episodes=1500,
-      train_max_episode_len=50,
-      eval_interval=10000,
-      outdir=params['output_dir'],
-      logger=logger,
-    )
+  train_agent_with_evaluation(
+    agent,
+    env,
+    steps=100000,
+    eval_n_steps=None,
+    eval_n_episodes=1500,
+    train_max_episode_len=50,
+    eval_interval=10000,
+    outdir=params['output_dir'],
+    logger=logger,
+  )
 
 if __name__ == '__main__':
   main()
