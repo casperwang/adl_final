@@ -8,11 +8,11 @@ load_in_4bit: true
 strict: false
 
 datasets:
-  - path: data/data.json
+  - path: data/APCSC-normal_train.json
     type: alpaca
 dataset_prepared_path:
-val_set_size: 0.05
-output_dir: ./qlora-out
+val_set_size: 0.00
+output_dir: ./codellama_prompt2
 
 adapter: qlora
 lora_model_dir:
@@ -34,8 +34,8 @@ wandb_watch:
 wandb_run_id:
 wandb_log_model:
 
-gradient_accumulation_steps: 4
-micro_batch_size: 2
+gradient_accumulation_steps: 2
+micro_batch_size: 4
 num_epochs: 1
 optimizer: paged_adamw_32bit
 lr_scheduler: cosine

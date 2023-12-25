@@ -24,21 +24,20 @@ from transformers import (
 from peft import PeftModel
 from transformers import LlamaForCausalLM
 from utils import get_bnb_config, score_submission
+from execution import prob_exists
 
 from torch import cuda
 device = 'cuda' if cuda.is_available() else 'cpu'
 print('using', device)
 
 params = {
-  'model': 'codellama/CodeLlama-7b-hf',
-  'peft_model': './codellama',
-  'train_file': './data/data.json',
+  'model': './codellama_prompt2/merged',
+  # 'peft_model': './codellama',
+  'train_file': './data/APCSC-normal_train.json',
   'test_batch_size': 32,
   'episodes': 10,
   'epochs': 20,
-  'learning_rate': 1e-3,
-  'max_source_length': 256,
-  'max_target_length': 64,
+  'learning_rate': 1e-5,
   'max_length': 2048,
   'num_beams': 8,
   'seed': 42,
@@ -97,13 +96,26 @@ class MyTextRLActor(TextRLActor):
     return agent
 
 class MyRLEnv(TextRLEnv):
+  def to_string(self, predicted):
+    return self.tokenizer.convert_tokens_to_string([i for i in predicted if i not in self.tokenizer.all_special_tokens])
   def get_reward(self, input_item, predicted_list, finish):
     rewards = []
     for predicted_item in predicted_list:
       reward = 0
+      # print(self.tokenizer.additional_special_tokens)
+      # print(predicted_item)
+      # print(self.to_string(predicted_item).encode())
+      # print(f"========= {len(predicted_item)}\n" + self.to_string(predicted_item))
+      print("*", end='')
       if finish:
-        predicted_text = self.tokenizer.convert_tokens_to_string(predicted_item)
-        reward = score_submission(input_item['problem_id'], predicted_text)
+        predicted_text = self.to_string(predicted_item)
+        print("vvvvvvvvvvvvv CODE vvvvvvvvvvvvv\n" + predicted_text)
+        try:
+          reward = score_submission(input_item['problem_id'], predicted_text)
+          print(f"\033[0;33m{reward}\033[0m")
+        except Exception as e:
+          print("ERROR " * 10)
+          print(e)
       rewards.append(reward)
     return rewards
 
@@ -128,13 +140,13 @@ def main():
   tokenizer.pad_token_id = tokenizer.eos_token_id
   # model = PeftModel.from_pretrained(model, params['peft_model'])
 
-  optimizer = Adafactor(
-    params=model.parameters(),
-    lr=params['learning_rate'],
-    scale_parameter=False,
-    relative_step=False,
-    warmup_init=False
-  )
+  # optimizer = Adafactor(
+  #   params=model.parameters(),
+  #   lr=params['learning_rate'],
+  #   scale_parameter=False,
+  #   relative_step=False,
+  #   warmup_init=False
+  # )
 
   def preprocess_function(examples):
     if 'output' in examples:
@@ -155,12 +167,16 @@ def main():
   dataset['test'] = dataset['test'].map(preprocess_function, batched=True)
 
   observation_list = [{
-    'problem_id': dataset['test'][i]['id'],
-    'input': dataset['test'][i]['instruction']
-  } for i in range(len(dataset['test']))]
+    'problem_id': d['problem_tag'][-1],
+    'input': d['instruction']
+  } for d in dataset['test'] if d['problem_tag'] and prob_exists(d['problem_tag'][-1])]
 
-  env = MyRLEnv(model, tokenizer, observation_input=observation_list)
-  actor = MyTextRLActor(env, model, tokenizer, optimizer)
+  env = MyRLEnv(model, tokenizer, observation_input=observation_list, max_length=2000)
+  actor = MyTextRLActor(
+    env, model, tokenizer,
+    act_deterministically=False,
+    temperature=1.0,
+  )
   agent = actor.agent_ppo(update_interval=10, minibatch_size=600, epochs=params['epochs'])
 
   logger.info('Start training')
@@ -171,7 +187,7 @@ def main():
     steps=100000,
     eval_n_steps=None,
     eval_n_episodes=1500,
-    train_max_episode_len=50,
+    train_max_episode_len=None,
     eval_interval=10000,
     outdir=params['output_dir'],
     logger=logger,
@@ -179,3 +195,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+

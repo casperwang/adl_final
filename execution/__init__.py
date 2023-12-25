@@ -1,5 +1,6 @@
 import os, tempfile, re
 from os.path import exists, join, dirname, abspath
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 def execute(cmd):
     print(f"\033[0;34mEXEC {cmd}\033[0m")
@@ -14,15 +15,20 @@ def repo(*x):
 def execute_at(cmd, prob):
     return execute(f"cd {repo(prob)} && " + cmd)
 
+def prob_exists(prob):
+    return exists(repo(prob))
+
 verdicts = ["Correct", "Runtime Error", "Time Limit Exceeded", "Wrong Answer"]
 translate = { "Correct": "AC", "Runtime Error": "RE", "Time Limit Exceeded": "TLE", "Wrong Answer": "WA" }
 
 def posistion(row, col, ctx):
+    if col is None: col = 0
     return dict(
         row = row,
         col = col,
-        index = sum(map(len, ctx.split('\n')[:row-1])) + row-1 + col,
-        context_length = len(ctx)
+        index = sum(map(lambda x: len(x.replace('\t', '    ')), ctx.split('\n')[:row-1]))\
+                 + row-1 + col,
+        context_length = len(ctx.replace("\r\n", "\n"))
     )
 
 def parse_verdict(s, code):
@@ -37,8 +43,8 @@ def parse_verdict(s, code):
             s = s[4:]
             result = dict(CE = True, mainless=False)
             # graph08.cpp:20:18: error
-            match = [re.match(r'^[^:]+:(\d+):(\d+): error', i) for i in s]
-            match = [(int(i.group(1)), int(i.group(2))) for i in match if i]
+            match = [re.match(r'^[^:]+:(\d+):(\d+)?:?( fatal)? error', i) for i in s]
+            match = [(int(i.group(1)), i.group(2) and int(i.group(2))) for i in match if i]
             result["errors"] = [posistion(*i, code) for i in match]
             assert len(result["errors"]) != 0, "oops... no error?"
     else:
@@ -64,6 +70,7 @@ def parse_verdict(s, code):
     return result
 
 def evaluate(prob, code):
+    prob = str(prob)
     if not exists(repo(prob, "tests")):
         res = execute_at("tps gen", prob)
         # print(res)
@@ -73,3 +80,4 @@ def evaluate(prob, code):
         f.seek(0)
         res = execute_at(f"tps invoke {abspath(f.name)}", prob)
         return parse_verdict(res, code)
+

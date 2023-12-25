@@ -26,8 +26,8 @@ def score_submission(pid, code):
   verdict = execution.evaluate(pid, code)
   if verdict['CE']:
     if verdict['mainless']:
-      return 0
-    first_error = min(i["index"] / (i["context_length"]+1) for i in verdict["errors"])
-    return first_error
+      return -10
+    first_error_pos = min(i["index"] / (i["context_length"]+1) for i in verdict["errors"])
+    return first_error_pos - len(verdict["errors"])
   else:
-    return 1 + verdict["score"][0] / verdict["score"][1]
+    return 2 + 5 * verdict["AC"] / verdict["tasks"] + 5 * verdict["score"][0] / verdict["score"][1]
