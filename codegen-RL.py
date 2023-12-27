@@ -30,18 +30,17 @@ from torch import cuda
 device = 'cuda' if cuda.is_available() else 'cpu'
 print('using', device)
 
+model_type = sys.argv[1]
+output_file = sys.argv[3]
+
 params = {
-  'model': './deepseek_prompt2/merged',
-  # 'peft_model': './deepseek',
-  'train_file': './data/APCSC-normal_train.json',
-  'test_batch_size': 32,
-  'episodes': 10,
-  'epochs': 20,
-  'learning_rate': 1e-5,
+  'model': f'./{model_type}_prompt2/merged',
+  'checkpoint': sys.argv[2],
+  'train_file': './data/APCSC-normal_test_unique.json',
   'max_length': 2048,
-  'num_beams': 8,
+  'epochs': 20,
   'seed': 42,
-  'output_dir': './RL-deepseek'
+  'output_dir': f'./RL-{model_type}'
 }
 
 class MyTextRLActor(TextRLActor):
@@ -106,7 +105,7 @@ class MyRLEnv(TextRLEnv):
     for predicted_item in predicted_list:
       reward = 0
       # print(self.tokenizer.additional_special_tokens)
-      # print(predicted_item)
+      # print(predicted_item[-1])
       # print(self.to_string(predicted_item).encode())
       # print(f"========= {len(predicted_item)}\n" + self.to_string(predicted_item))
       print("*", end='', flush=True)
@@ -170,32 +169,39 @@ def main():
   dataset['test'] = dataset['test'].map(preprocess_function, batched=True)
 
   observation_list = [{
-    'problem_id': d['problem_tag'][-1],
+    'problem_id': d['problem_id'],
     'input': d['instruction']
   } for d in dataset['test'] if d['problem_tag'] and prob_exists(d['problem_tag'][-1])]
 
-  env = MyRLEnv(model, tokenizer, observation_input=observation_list, max_length=2000)
+  env = MyRLEnv(model, tokenizer, observation_input=observation_list, max_length=2000, compare_sample=1)
   actor = MyTextRLActor(
     env, model, tokenizer,
-    act_deterministically=False,
+    act_deterministically=True,
     temperature=1.0,
   )
   agent = actor.agent_ppo(update_interval=200, minibatch_size=600, epochs=params['epochs'])
 
-  logger.info('Start training')
+  logger.info('Start generating')
 
-  train_agent_with_evaluation(
-    agent,
-    env,
-    steps=30000,
-    checkpoint_freq=1000,
-    eval_n_steps=None,
-    eval_n_episodes=1,
-    train_max_episode_len=None,
-    eval_interval=10000,
-    outdir=params['output_dir'],
-    logger=logger,
-  )
+  agent.load(f"RL-{model_type}/{params['checkpoint']}")
+
+  env.env_max_length = 500
+
+  def make_item(x, item):
+    print("make_item")
+    x = x[0]
+    if x.endswith("</s>"):
+      x = x[:-4]
+    print(x)
+    return dict(id=item['problem_id'], output=x)
+
+  predictions = [
+    make_item(actor.predict(item), item)
+    for item in observation_list
+  ]
+
+  with open(output_file, 'w+', encoding='utf-8') as f:
+    json.dump(predictions, f, ensure_ascii=False, indent=2)
 
 if __name__ == '__main__':
   main()

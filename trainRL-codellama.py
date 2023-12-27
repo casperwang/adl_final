@@ -41,7 +41,7 @@ params = {
   'max_length': 2048,
   'num_beams': 8,
   'seed': 42,
-  'output_dir': './RL_result'
+  'output_dir': './RL-codellama'
 }
 
 class MyTextRLActor(TextRLActor):
@@ -96,8 +96,12 @@ class MyTextRLActor(TextRLActor):
     return agent
 
 class MyRLEnv(TextRLEnv):
+  def __init__(self, *a, **b):
+    super().__init__(*a, **b)
+    self.gen_stop_toks = self.tokenizer.all_special_tokens
   def to_string(self, predicted):
     return self.tokenizer.convert_tokens_to_string([i for i in predicted if i not in self.tokenizer.all_special_tokens])
+  @profile
   def get_reward(self, input_item, predicted_list, finish):
     rewards = []
     for predicted_item in predicted_list:
@@ -106,10 +110,10 @@ class MyRLEnv(TextRLEnv):
       # print(predicted_item)
       # print(self.to_string(predicted_item).encode())
       # print(f"========= {len(predicted_item)}\n" + self.to_string(predicted_item))
-      print("*", end='')
+      print("*", end='', flush=True)
       if finish:
         predicted_text = self.to_string(predicted_item)
-        print("vvvvvvvvvvvvv CODE vvvvvvvvvvvvv\n" + predicted_text)
+        print("\nvvvvvvvvvvvvv CODE vvvvvvvvvvvvv\n" + predicted_text)
         try:
           reward = score_submission(input_item['problem_id'], predicted_text)
           print(f"\033[0;33m{reward}\033[0m")
@@ -177,16 +181,17 @@ def main():
     act_deterministically=False,
     temperature=1.0,
   )
-  agent = actor.agent_ppo(update_interval=10, minibatch_size=600, epochs=params['epochs'])
+  agent = actor.agent_ppo(update_interval=200, minibatch_size=600, epochs=params['epochs'])
 
   logger.info('Start training')
 
   train_agent_with_evaluation(
     agent,
     env,
-    steps=100000,
+    steps=30000,
+    checkpoint_freq=1000,
     eval_n_steps=None,
-    eval_n_episodes=1500,
+    eval_n_episodes=1,
     train_max_episode_len=None,
     eval_interval=10000,
     outdir=params['output_dir'],
@@ -195,4 +200,5 @@ def main():
 
 if __name__ == '__main__':
   main()
+
 

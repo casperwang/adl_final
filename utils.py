@@ -22,8 +22,7 @@ def cut_string(input_string, begin_token, end_token):
   result = input_string[start_index:]
   return result
 
-def score_submission(pid, code):
-  verdict = execution.evaluate(pid, code)
+def score_verdict(verdict):
   if verdict['CE']:
     if verdict['mainless']:
       return -10
@@ -31,3 +30,28 @@ def score_submission(pid, code):
     return first_error_pos - len(verdict["errors"])
   else:
     return 2 + 5 * verdict["AC"] / verdict["tasks"] + 5 * verdict["score"][0] / verdict["score"][1]
+
+def score_submission(pid, code):
+  verdict = execution.evaluate(pid, code)
+  return score_verdict(verdict)
+
+if __name__ == '__main__':
+  import sys
+  with open(sys.argv[1], "r") as f:
+    codes = json.load(f)
+  for c in codes:
+    try:
+      c["verdict"] = execution.evaluate(c["id"], c["output"])
+      c["score"] = score_verdict(c["verdict"])
+      print(c["score"])
+    except:
+      c["verdict"] = False
+      c["score"] = -10
+      print("ERROR " * 5)
+
+  if len(sys.argv) >= 3:
+    with open(sys.argv[2], "w+") as f:
+      json.dump(codes, f, indent=2, ensure_ascii=False)
+  else:
+    print(json.dumps(codes, indent=2, ensure_ascii=False))
+
