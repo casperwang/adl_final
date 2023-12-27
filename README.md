@@ -10,6 +10,7 @@ Rough description of how you run your code. Note that we will not actually run y
 
 ## Data Preprocessing
 `data/load_data.py`
+`data/split.py`
 ## LoRA
 `codellama.yml`
 `deepseek.yml` 
@@ -41,6 +42,8 @@ Rough description of how you run your code. Note that we will not actually run y
     training and testing data files
 - `data/load_data.py`\
     preprocess training/testing data on APCSC problem sets.
+- `data/split.py`\
+    split training/testing data on APCSC problem sets.
 - `gpt.py`\
     api that send request to GPT 3.5 turbo for generating codes.
 - `merge.sh`\
